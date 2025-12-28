@@ -2,6 +2,61 @@ from rest_framework import serializers
 from wf_parser.models import ImageAnalysisResult, ImageAnalysisSession
 
 
+# ============================================================================
+# Text Analysis Request/Response Serializers
+# ============================================================================
+
+class TextAnalysisRequestSerializer(serializers.Serializer):
+    """Serializer for text analysis requests"""
+    text = serializers.CharField(
+        required=True,
+        help_text="The text to analyze (minimum 10 characters)",
+        min_length=10
+    )
+    title = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional title for the text (if not provided, first sentence will be used)"
+    )
+
+
+class WordFrequencySerializer(serializers.Serializer):
+    """Serializer for word frequency data"""
+    word = serializers.CharField(help_text="The word")
+    count = serializers.IntegerField(help_text="Frequency count of the word")
+
+
+class TextAnalysisResponseSerializer(serializers.Serializer):
+    """Serializer for text analysis responses"""
+    title = serializers.CharField(help_text="Title of the analyzed text")
+    words = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.CharField(),
+            min_length=2,
+            max_length=2
+        ),
+        help_text="List of [word, count] pairs sorted by frequency. Format: [[word1, count1], [word2, count2], ...] where count is a number representing frequency. Note: In the actual API response, the count is a number, but the OpenAPI schema represents it as string for compatibility."
+    )
+    sentences = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="List of sentences extracted from the text"
+    )
+    total_words = serializers.IntegerField(help_text="Total number of words")
+    total_unique_words = serializers.IntegerField(help_text="Total number of unique words")
+    total_sentences = serializers.IntegerField(help_text="Total number of sentences")
+    file_size = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="File size in bytes (if applicable)"
+    )
+    filename = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="Original filename (if applicable)"
+    )
+
+
 class EPubUploadSerializer(serializers.Serializer):
     """Serializer for the EPUB file upload."""
     file = serializers.FileField(

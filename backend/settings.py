@@ -31,7 +31,7 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 CLOUD_RUN_SERVICE_URL = os.environ.get('CLOUD_RUN_SERVICE_URL', '')
 
 # Build ALLOWED_HOSTS list
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 if CLOUD_RUN_SERVICE_URL:
     # Extract hostname from Cloud Run URL
     hostname = CLOUD_RUN_SERVICE_URL.replace(

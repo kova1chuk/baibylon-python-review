@@ -1,16 +1,18 @@
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import JSONParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from wf_parser.lib.base_analysis_view import BaseAnalysisView
+from wf_parser.serializers import TextAnalysisRequestSerializer, TextAnalysisResponseSerializer
 from .text_processor import TextProcessor
-from drf_yasg import openapi
 
 
 class TextAnalysisView(BaseAnalysisView):
     """
     Analyze simple text input for word and sentence statistics
     """
+    parser_classes = [JSONParser]
 
     def get_processor(self):
         """Get the text processor instance."""
@@ -92,21 +94,31 @@ class TextAnalysisView(BaseAnalysisView):
         """,
         operation_title="Text Analysis API",
         operation_summary="Analyze simple text",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['text'],
-            properties={
-                'text': openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="The text to analyze"
-                ),
-                'title': openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Optional title for the text (if not provided, first sentence will be used)"
+        request_body=TextAnalysisRequestSerializer,
+        responses={
+            200: openapi.Response(
+                description="Analysis completed successfully",
+                schema=TextAnalysisResponseSerializer
+            ),
+            400: openapi.Response(
+                description="Bad request - invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
                 )
-            }
-        ),
-        responses=BaseAnalysisView.get_standard_swagger_responses(),
+            ),
+            500: openapi.Response(
+                description="Internal server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            )
+        },
         tags=['Text Analysis'],
         operation_id='analyze_text'
     )

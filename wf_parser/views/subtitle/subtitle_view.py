@@ -4,6 +4,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.parsers import MultiPartParser
 from wf_parser.lib.base_analysis_view import BaseAnalysisView
+from wf_parser.serializers import TextAnalysisResponseSerializer
 from .subtitle_processor import SubtitleProcessor
 
 
@@ -80,8 +81,39 @@ class SubtitleAnalysisView(BaseAnalysisView):
         - Remove extra whitespace
         """,
         operation_summary="Upload and parse subtitle file",
-        request_body=None,  # Will be set dynamically
-        responses=BaseAnalysisView.get_standard_swagger_responses(),
+        manual_parameters=[
+            openapi.Parameter(
+                'file',
+                openapi.IN_FORM,
+                description="Subtitle file to upload and analyze (SRT, VTT, ASS, SSA)",
+                type=openapi.TYPE_FILE,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Analysis completed successfully",
+                schema=TextAnalysisResponseSerializer
+            ),
+            400: openapi.Response(
+                description="Bad request - invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Internal server error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            )
+        },
         tags=['Text Analysis'],
         operation_id='upload_subtitle'
     )

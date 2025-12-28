@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 
 # Swagger schema view
 schema_view = get_schema_view(
@@ -43,7 +44,58 @@ class RootAPIView(APIView):
     """
     Root API endpoint that provides basic information about the API
     """
-
+    
+    @swagger_auto_schema(
+        operation_description="Get API information and available endpoints",
+        operation_summary="API Root",
+        responses={
+            200: openapi.Response(
+                description="API information",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'name': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="API name"
+                        ),
+                        'version': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="API version"
+                        ),
+                        'description': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="API description"
+                        ),
+                        'endpoints': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Available API endpoints",
+                            additional_properties=openapi.Schema(type=openapi.TYPE_STRING)
+                        ),
+                        'documentation': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="Link to API documentation"
+                        )
+                    }
+                ),
+                examples={
+                    "application/json": {
+                        "name": "Word Flow Text Analyzer API",
+                        "version": "v1.0.0",
+                        "description": "API for parsing EPUB files and extracting text analysis data",
+                        "endpoints": {
+                            "health": "/api/health/",
+                            "text": "/api/text/",
+                            "subtitle": "/api/subtitle/",
+                            "swagger": "/swagger/"
+                        },
+                        "documentation": "/swagger/"
+                    }
+                }
+            )
+        },
+        tags=['API Info'],
+        operation_id='api_root'
+    )
     def get(self, request):
         return Response({
             'name': 'Word Flow Text Analyzer API',
@@ -72,6 +124,9 @@ urlpatterns = [
     path('', RootAPIView.as_view(), name='api_root'),
 
     path('admin/', admin.site.urls),
+    # API root endpoint (without trailing slash)
+    path('api', RootAPIView.as_view(), name='api_root_no_slash'),
+    # API endpoints
     path('api/', include('wf_parser.urls')),
 
     # Swagger URLs
