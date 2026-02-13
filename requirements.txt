@@ -36,3 +36,8 @@ pyspellchecker>=0.7.2,<1.0.0
 # Fuzzy string matching for OCR error correction
 fuzzywuzzy>=0.18.0,<1.0.0
 # python-Levenshtein==0.25.0  # Temporarily disabled due to potential compatibility issues
+# Word enrichment (Supabase + word frequency)
+supabase>=2.0.0
+wordfreq>=3.0.0
+# Environment variables
+python-dotenv>=1.0.0
