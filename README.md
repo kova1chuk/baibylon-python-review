@@ -1,331 +1,65 @@
-# Word Flow Text Analyzer
+# Vocairo Text Analyzer
 
-A Django REST API for parsing EPUB files and extracting text analysis data, containerized for Cloud Run deployment.
+A FastAPI service for text analysis (EPUB, subtitles, plain text), word enrichment (WordNet + wordfreq), context-aware translation (DeepL), and OCR stubs.
 
 ## Features
 
-- Upload EPUB files via REST API
-- Extract full word list from EPUB content
-- Generate unique (deduplicated) word list
-- Extract sentences from the book
-- Text cleaning and normalization
-- Error handling and validation
-- **Containerized deployment on Google Cloud Run**
-- **CI/CD pipeline with GitHub Actions**
-- **Artifact Registry for container images**
-- **Swagger/OpenAPI documentation**
+- Analyse plain text, EPUB files, and subtitle files (SRT, VTT, TXT)
+- Word enrichment with WordNet senses, frequency data, CEFR level estimation
+- Context-aware translation via DeepL
+- Auto-generated OpenAPI docs (Swagger UI & ReDoc)
 
 ## Local Development
 
 ### Setup
 
-1. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+cp .env.example .env   # then fill in your keys
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Run
 
-2. **Run Django development server:**
+```bash
+uvicorn app.main:app --reload --port 8080
+```
 
-   ```bash
-   python manage.py runserver
-   ```
+### API Documentation
 
-3. **Access the API:**
-   - Base URL: `http://127.0.0.1:8000/`
-   - API Documentation: `http://127.0.0.1:8000/swagger/`
-   - ReDoc Documentation: `http://127.0.0.1:8000/redoc/`
-   - Upload endpoint: `http://127.0.0.1:8000/api/upload/`
-   - Health check: `http://127.0.0.1:8000/api/health/`
-
-## API Documentation
-
-### Swagger UI
-- **Local**: `http://127.0.0.1:8000/swagger/`
-- **Production**: `https://your-service-url/swagger/`
-
-### ReDoc
-- **Local**: `http://127.0.0.1:8000/redoc/`
-- **Production**: `https://your-service-url/redoc/`
-
-### OpenAPI Schema
-- **JSON**: `http://127.0.0.1:8000/swagger.json`
-- **YAML**: `http://127.0.0.1:8000/swagger.yaml`
-
-## Cloud Run Deployment
-
-### Prerequisites
-
-1. **Google Cloud SDK installed and authenticated:**
-
-   ```bash
-   gcloud auth login
-   gcloud config set project word-flow-text-analyzer
-   ```
-
-2. **Docker installed and running**
-
-3. **Artifact Registry repository created:**
-
-   ```bash
-   gcloud artifacts repositories create word-flow-repo \
-     --repository-format=docker \
-     --location=europe-central2 \
-     --description="Word Flow Text Analyzer container repository"
-   ```
-
-### Manual Deployment
-
-1. **Run the deployment script:**
-
-   ```bash
-   ./deploy.sh [PROJECT_ID] [REGION]
-   ```
-
-2. **Or deploy manually:**
-
-   ```bash
-   # Configure Docker for Artifact Registry
-   gcloud auth configure-docker europe-central2-docker.pkg.dev
-   
-   # Build and push container
-   docker build -t europe-central2-docker.pkg.dev/word-flow-text-analyzer/word-flow-repo/word-flow:latest .
-   docker push europe-central2-docker.pkg.dev/word-flow-text-analyzer/word-flow-repo/word-flow:latest
-   
-   # Deploy to Cloud Run
-   gcloud run deploy word-flow \
-     --image europe-central2-docker.pkg.dev/word-flow-text-analyzer/word-flow-repo/word-flow:latest \
-     --region europe-central2 \
-     --platform managed \
-     --allow-unauthenticated \
-     --memory 1Gi \
-     --cpu 1
-   ```
-
-### CI/CD with GitHub Actions
-
-1. **Set up GitHub Secrets:**
-   - `GCP_PROJECT_ID`: `word-flow-text-analyzer`
-   - `GCP_SA_KEY`: Base64-encoded service account key JSON
-
-2. **Push to main branch** - automatic deployment will trigger
-
-### CI/CD with Cloud Build
-
-1. **Enable Cloud Build API:**
-
-   ```bash
-   gcloud services enable cloudbuild.googleapis.com
-   ```
-
-2. **Set up trigger** in Google Cloud Console or use:
-
-   ```bash
-   gcloud builds submit --config cloudbuild.yaml .
-   ```
+- Swagger UI: `http://localhost:8080/docs`
+- ReDoc: `http://localhost:8080/redoc`
 
 ## API Endpoints
 
-### GET /api/health/
-Health check endpoint to verify API status.
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| POST | `/api/text` | Analyse plain text |
+| POST | `/api/epub` | Upload & analyse EPUB |
+| POST | `/api/subtitle` | Upload & analyse subtitle file |
+| POST | `/api/enrich-word` | Enrich word with NLP data & persist to Supabase |
+| GET | `/api/word/{word}/nlp` | Get NLP data for a word |
+| POST | `/api/translate` | Translate text (DeepL, context-aware) |
+| POST | `/api/image` | Image OCR (stub) |
+| GET | `/api/image/health` | OCR health check (stub) |
 
-**Response:**
-```json
-{
-    "status": "healthy",
-    "message": "Word Flow Text Analyzer API is running",
-    "version": "v1.0.0"
-}
-```
+## Environment Variables
 
-### POST /api/upload/
-
-Upload an EPUB file for parsing and analysis.
-
-**Request:**
-
-- Method: `POST`
-- Content-Type: `multipart/form-data`
-- Body: Form data with `file` field containing an EPUB file
-
-**Response:**
-
-```json
-{
-    "word_list": ["this", "is", "a", "test", ...],
-    "unique_words": ["a", "is", "test", "this", ...],
-    "sentences": ["This is a test.", "Another sentence here.", ...],
-    "total_words": 1500,
-    "total_unique_words": 800,
-    "total_sentences": 100
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request`: No file provided or invalid file type
-- `500 Internal Server Error`: Error processing the EPUB file
-
-## Testing
-
-### Local Testing
-
-1. **Test health check:**
-
-   ```bash
-   curl -X GET http://127.0.0.1:8000/api/health/
-   ```
-
-2. **Test with no file:**
-
-   ```bash
-   curl -X POST http://127.0.0.1:8000/api/upload/
-   ```
-
-3. **Test with wrong file type:**
-
-   ```bash
-   curl -X POST -F "file=@requirements.txt" http://127.0.0.1:8000/api/upload/
-   ```
-
-4. **Test with valid EPUB file:**
-
-   ```bash
-   curl -X POST -F "file=@your_book.epub" http://127.0.0.1:8000/api/upload/
-   ```
-
-### Cloud Run Testing
-
-Replace `YOUR_SERVICE_URL` with your actual Cloud Run service URL:
-
-```bash
-# Health check
-curl -X GET https://YOUR_SERVICE_URL/api/health/
-
-# Upload EPUB
-curl -X POST -F "file=@your_book.epub" https://YOUR_SERVICE_URL/api/upload/
-```
-
-## Technical Details
-
-### Dependencies
-
-- **Django**: Web framework
-- **Django REST Framework**: API framework
-- **drf-yasg**: Swagger/OpenAPI documentation
-- **ebooklib**: EPUB file parsing
-- **BeautifulSoup**: HTML parsing
-- **NLTK**: Natural language processing
-- **lxml**: XML/HTML parser
-- **gunicorn**: WSGI server for production
-
-### Container Configuration
-
-- **Base Image**: Python 3.11-slim
-- **Port**: 8080 (Cloud Run requirement)
-- **Memory**: 1Gi (configurable)
-- **CPU**: 1 (configurable)
-- **Max Instances**: 10 (configurable)
-- **Timeout**: 300 seconds (5 minutes)
-- **Registry**: Artifact Registry (europe-central2)
-- **Repository**: `word-flow-repo`
-- **Image**: `word-flow:latest`
-
-### Environment Variables
-
-- `DEBUG`: Set to `False` in production
-- `ALLOWED_HOSTS`: Set to `*` for Cloud Run
-- `SECRET_KEY`: Django secret key (auto-generated if not set)
-
-### Text Processing
-
-1. **EPUB Parsing**: Uses `ebooklib` to read EPUB files and extract HTML content
-2. **HTML Cleaning**: Uses `BeautifulSoup` to extract plain text from HTML
-3. **Tokenization**: Uses NLTK's `word_tokenize` and `sent_tokenize` for text analysis
-4. **Text Cleaning**:
-   - Removes extra whitespace
-   - Filters for alphabetic words only
-   - Converts to lowercase
-   - Deduplicates words
-
-### Error Handling
-
-- Validates file presence
-- Validates file extension (.epub)
-- Handles EPUB parsing errors
-- Returns appropriate HTTP status codes
+See `.env.example` for the full list.
 
 ## Project Structure
 
 ```
-word_flow_text_analyzer/
-├── backend/                 # Django project settings
-│   ├── settings.py         # Django configuration
-│   └── urls.py            # Main URL routing
-├── parser/           # Main app
-│   ├── views.py          # API views with Swagger docs
-│   ├── urls.py           # App URL routing
-│   └── models.py         # Database models
-├── .github/workflows/     # GitHub Actions CI/CD
-│   └── deploy.yml        # Deployment workflow
-├── Dockerfile            # Container configuration
-├── .dockerignore         # Docker ignore file
-├── cloudbuild.yaml       # Cloud Build configuration
-├── deploy.sh            # Manual deployment script
-├── requirements.txt      # Python dependencies
-└── manage.py            # Django management script
+vocairo_text_analyzer/
+├── app/
+│   ├── main.py              # FastAPI app, CORS, lifespan
+│   ├── config.py            # Pydantic Settings
+│   ├── dependencies.py      # Shared deps (Supabase client)
+│   ├── models/              # Pydantic request/response schemas
+│   ├── routers/             # FastAPI routers (endpoints)
+│   ├── services/            # Business logic
+│   └── processors/          # File processing
+├── requirements.txt
+├── .env.example
+└── README.md
 ```
-
-## Monitoring and Logging
-
-### Cloud Run Logs
-
-View logs in Google Cloud Console:
-
-```bash
-gcloud logs read --service=word-flow-service --limit=50
-```
-
-### Performance Monitoring
-
-- Cloud Run automatically provides metrics
-- Monitor CPU, memory, and request latency
-- Set up alerts for high error rates
-
-## Security Considerations
-
-- HTTPS enforced by Cloud Run
-- No authentication required (public API)
-- File size limits: 50MB
-- Input validation and sanitization
-- Non-root container user
-
-## Cost Optimization
-
-- **Scaling**: 0 to 10 instances based on demand
-- **Billing**: Pay only for actual usage
-- **Memory**: 1Gi allocation (adjust based on needs)
-- **Region**: europe-central2 (optimized for European users)
-- **Registry**: Artifact Registry (more cost-effective than Container Registry)
-
-## Development
-
-To add new features or modify the existing functionality:
-
-1. Update the views in `parser/views.py` with proper Swagger documentation
-2. Add new URL patterns in `parser/urls.py` if needed
-3. Test locally with `python manage.py runserver`
-4. Check Swagger documentation at `/swagger/`
-5. Push to main branch for automatic deployment
-6. Update this README with new features
-
-## Notes
-
-- The NLTK punkt tokenizer is automatically downloaded on first use
-- The API accepts only EPUB files (.epub extension)
-- Text processing includes basic cleaning and normalization
-- All words are converted to lowercase for consistency
-- Cloud Run automatically scales to zero when not in use
-- Deployment takes ~2-3 minutes for the first build
-- Using Artifact Registry in europe-central2 for better performance in Europe
-- Swagger documentation is automatically generated from code annotations

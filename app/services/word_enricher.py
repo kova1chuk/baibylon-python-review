@@ -1,0 +1,220 @@
+import logging
+
+import nltk
+from wordfreq import zipf_frequency, top_n_list
+
+from app.models.enrichment import WordNlpData, WordSense
+
+logger = logging.getLogger(__name__)
+
+_nltk_ready = False
+
+
+def _ensure_nltk() -> None:
+    global _nltk_ready
+    if _nltk_ready:
+        return
+    nltk.download("wordnet", quiet=True)
+    nltk.download("omw-1.4", quiet=True)
+    _nltk_ready = True
+
+
+_top_sets: dict[int, set[str]] = {}
+
+
+def _get_top_set(n: int) -> set[str]:
+    if n not in _top_sets:
+        _top_sets[n] = set(top_n_list("en", n))
+    return _top_sets[n]
+
+
+def _zipf_to_level(zipf: float) -> str:
+    if zipf >= 6:
+        return "A1"
+    if zipf >= 5:
+        return "A2"
+    if zipf >= 4:
+        return "B1"
+    if zipf >= 3:
+        return "B2"
+    if zipf >= 2:
+        return "C1"
+    return "C2"
+
+
+def _zipf_to_priority(zipf: float) -> int:
+    return min(100, max(1, int(zipf * 15)))
+
+
+_POS_MAP: dict[str, str] = {
+    "n": "n",
+    "v": "v",
+    "a": "a",
+    "s": "a",
+    "r": "r",
+}
+
+
+def enrich_word(text: str) -> WordNlpData:
+    """Build a full enrichment payload for a single English word."""
+    _ensure_nltk()
+    from nltk.corpus import wordnet as wn
+
+    word = text.strip().lower()
+
+    # wordfreq
+    zipf = zipf_frequency(word, "en")
+    is_top_1k = word in _get_top_set(1_000)
+    is_top_5k = word in _get_top_set(5_000)
+    is_top_10k = word in _get_top_set(10_000)
+    is_top_50k = word in _get_top_set(50_000)
+
+    # WordNet
+    synsets = wn.synsets(word)
+
+    pos_synsets: dict[str, list] = {}
+    for ss in synsets:
+        pos = _POS_MAP.get(ss.pos(), ss.pos())
+        if pos not in pos_synsets:
+            pos_synsets[pos] = []
+        if len(pos_synsets[pos]) < 3:
+            pos_synsets[pos].append(ss)
+
+    senses: list[WordSense] = []
+    all_synonyms: set[str] = set()
+    all_antonyms: set[str] = set()
+    all_hypernyms: set[str] = set()
+    all_derived: set[str] = set()
+    all_verb_frames: set[str] = set()
+    all_examples: list[str] = []
+
+    for pos, ss_list in pos_synsets.items():
+        for ss in ss_list:
+            sense_synonyms: list[str] = []
+            for lemma in ss.lemmas():
+                name = lemma.name().replace("_", " ")
+                if name.lower() != word:
+                    all_synonyms.add(name)
+                    sense_synonyms.append(name)
+                for ant in lemma.antonyms():
+                    all_antonyms.add(ant.name().replace("_", " "))
+                for df in lemma.derivationally_related_forms():
+                    all_derived.add(df.name().replace("_", " "))
+
+            for hyp in ss.hypernyms():
+                for lemma in hyp.lemmas():
+                    name = lemma.name().replace("_", " ")
+                    if len(all_hypernyms) < 5:
+                        all_hypernyms.add(name)
+
+            if hasattr(ss, "frame_ids"):
+                for fid in ss.frame_ids():
+                    try:
+                        all_verb_frames.add(ss.frame_text(fid))
+                    except Exception:
+                        pass
+
+            sense_examples = ss.examples()
+            all_examples.extend(sense_examples)
+
+            senses.append(WordSense(
+                pos=pos,
+                definition=ss.definition(),
+                examples=sense_examples,
+                synonyms=sense_synonyms,
+            ))
+
+    derived_list = sorted(all_derived)[:10]
+    primary_definition = senses[0].definition if senses else ""
+
+    return WordNlpData(
+        zipf_frequency=round(zipf, 2),
+        is_top_1k=is_top_1k,
+        is_top_5k=is_top_5k,
+        is_top_10k=is_top_10k,
+        is_top_50k=is_top_50k,
+        pos_available=list(pos_synsets.keys()),
+        senses=senses,
+        synonyms=sorted(all_synonyms),
+        antonyms=sorted(all_antonyms),
+        hypernyms=sorted(all_hypernyms),
+        derived_forms=derived_list,
+        verb_frames=sorted(all_verb_frames),
+        examples=all_examples,
+        estimated_level=_zipf_to_level(zipf),
+        suggested_priority=_zipf_to_priority(zipf),
+        primary_definition=primary_definition,
+    )
+
+
+def build_update_payload(data: WordNlpData, row: dict) -> dict:
+    """Build a Supabase update payload from enrichment data."""
+    payload: dict = {
+        "zipf_frequency": data.zipf_frequency,
+        "is_top_1k": data.is_top_1k,
+        "is_top_5k": data.is_top_5k,
+        "is_top_10k": data.is_top_10k,
+        "is_top_50k": data.is_top_50k,
+        "pos_available": data.pos_available,
+        "senses": [s.model_dump() for s in data.senses],
+        "synonyms": data.synonyms,
+        "hypernyms": data.hypernyms,
+        "derived_forms": data.derived_forms,
+        "verb_frames": data.verb_frames,
+        "examples": data.examples,
+        "estimated_level": data.estimated_level,
+        "suggested_priority": data.suggested_priority,
+        "primary_definition": data.primary_definition,
+    }
+
+    if not row.get("definition") and data.primary_definition:
+        payload["definition"] = data.primary_definition
+    if not row.get("synonymous") and data.synonyms:
+        payload["synonymous"] = ", ".join(data.synonyms[:10])
+    if not row.get("antonyms") and data.antonyms:
+        payload["antonyms"] = ", ".join(data.antonyms[:10])
+
+    return payload
+
+
+def enrich_all_words(supabase, batch_size: int = 100, skip_enriched: bool = True) -> dict:
+    """Paginate through en_words and enrich each one."""
+    offset = 0
+    total_enriched = 0
+    total_errors = 0
+
+    while True:
+        query = supabase.table("en_words").select(
+            "id, text, definition, synonymous, antonyms, zipf_frequency"
+        )
+        if skip_enriched:
+            query = query.is_("zipf_frequency", "null")
+        rows = query.range(offset, offset + batch_size - 1).execute()
+
+        if not rows.data:
+            break
+
+        for row in rows.data:
+            try:
+                data = enrich_word(row["text"])
+                update_payload = build_update_payload(data, row)
+                supabase.table("en_words").update(update_payload).eq("id", row["id"]).execute()
+                supabase.table("learning_item_metadata").update({
+                    "priority": data.suggested_priority,
+                    "level": data.estimated_level,
+                }).eq("item_type", "word").eq("item_id", row["id"]).execute()
+
+                total_enriched += 1
+                logger.info(
+                    "Enriched word: %s (zipf=%.2f, level=%s)",
+                    row["text"], data.zipf_frequency, data.estimated_level,
+                )
+            except Exception:
+                total_errors += 1
+                logger.exception("Failed to enrich word id=%s text=%s", row["id"], row["text"])
+
+        if len(rows.data) < batch_size:
+            break
+        offset += batch_size
+
+    return {"enriched": total_enriched, "errors": total_errors}
