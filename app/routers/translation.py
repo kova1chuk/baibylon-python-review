@@ -12,10 +12,7 @@ router = APIRouter(prefix="/api", tags=["Translation"])
 
 @router.post("/translate", response_model=TranslateResponse)
 async def translate(body: TranslateRequest):
-    """Translate text with optional context for more accurate word-level translation."""
     translator = get_translator()
-    if not translator.available:
-        raise HTTPException(status_code=503, detail="DeepL API key not configured")
 
     try:
         return translator.translate_word(

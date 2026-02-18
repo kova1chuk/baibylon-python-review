@@ -125,7 +125,18 @@ def enrich_word(text: str) -> WordNlpData:
             ))
 
     derived_list = sorted(all_derived)[:10]
-    primary_definition = senses[0].definition if senses else ""
+
+    best_def = ""
+    if synsets:
+        best_ss = max(
+            synsets,
+            key=lambda ss: max(
+                (l.count() for l in ss.lemmas() if l.name().lower() == word),
+                default=0,
+            ),
+        )
+        best_def = best_ss.definition()
+    primary_definition = best_def
 
     return WordNlpData(
         zipf_frequency=round(zipf, 2),
@@ -147,9 +158,9 @@ def enrich_word(text: str) -> WordNlpData:
     )
 
 
-def build_update_payload(data: WordNlpData, row: dict) -> dict:
+def build_update_payload(data: WordNlpData) -> dict:
     """Build a Supabase update payload from enrichment data."""
-    payload: dict = {
+    return {
         "zipf_frequency": data.zipf_frequency,
         "is_top_1k": data.is_top_1k,
         "is_top_5k": data.is_top_5k,
@@ -167,15 +178,6 @@ def build_update_payload(data: WordNlpData, row: dict) -> dict:
         "primary_definition": data.primary_definition,
     }
 
-    if not row.get("definition") and data.primary_definition:
-        payload["definition"] = data.primary_definition
-    if not row.get("synonymous") and data.synonyms:
-        payload["synonymous"] = ", ".join(data.synonyms[:10])
-    if not row.get("antonyms") and data.antonyms:
-        payload["antonyms"] = ", ".join(data.antonyms[:10])
-
-    return payload
-
 
 def enrich_all_words(supabase, batch_size: int = 100, skip_enriched: bool = True) -> dict:
     """Paginate through en_words and enrich each one."""
@@ -185,7 +187,7 @@ def enrich_all_words(supabase, batch_size: int = 100, skip_enriched: bool = True
 
     while True:
         query = supabase.table("en_words").select(
-            "id, text, definition, synonymous, antonyms, zipf_frequency"
+            "id, text, zipf_frequency"
         )
         if skip_enriched:
             query = query.is_("zipf_frequency", "null")
@@ -197,7 +199,7 @@ def enrich_all_words(supabase, batch_size: int = 100, skip_enriched: bool = True
         for row in rows.data:
             try:
                 data = enrich_word(row["text"])
-                update_payload = build_update_payload(data, row)
+                update_payload = build_update_payload(data)
                 supabase.table("en_words").update(update_payload).eq("id", row["id"]).execute()
                 supabase.table("learning_item_metadata").update({
                     "priority": data.suggested_priority,

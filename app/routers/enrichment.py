@@ -27,7 +27,7 @@ async def enrich_word_endpoint(body: EnrichWordRequest):
         if body.word_id:
             rows = (
                 supabase.table("en_words")
-                .select("id, definition, synonymous, antonyms")
+                .select("id")
                 .eq("id", body.word_id)
                 .limit(1)
                 .execute()
@@ -35,7 +35,7 @@ async def enrich_word_endpoint(body: EnrichWordRequest):
         else:
             rows = (
                 supabase.table("en_words")
-                .select("id, definition, synonymous, antonyms")
+                .select("id")
                 .eq("text", body.text)
                 .limit(1)
                 .execute()
@@ -43,7 +43,7 @@ async def enrich_word_endpoint(body: EnrichWordRequest):
 
         if rows.data:
             row = rows.data[0]
-            update_payload = build_update_payload(data, row)
+            update_payload = build_update_payload(data)
             supabase.table("en_words").update(update_payload).eq("id", row["id"]).execute()
             supabase.table("learning_item_metadata").update({
                 "priority": data.suggested_priority,
