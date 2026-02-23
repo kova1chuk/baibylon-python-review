@@ -24,6 +24,9 @@ regex>=2024.11.6
 Pillow>=10.4.0
 pytesseract>=0.3.10
 
+# HTTP
+requests>=2.31.0
+
 # Database
 supabase>=2.0.0
 

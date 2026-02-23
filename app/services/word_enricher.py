@@ -1,6 +1,7 @@
 import logging
 
 import nltk
+import requests
 from wordfreq import zipf_frequency, top_n_list
 
 from app.models.enrichment import WordNlpData, WordSense
@@ -53,6 +54,41 @@ _POS_MAP: dict[str, str] = {
     "s": "a",
     "r": "r",
 }
+
+
+def fetch_phonetics(word: str) -> dict:
+    """Fetch phonetic text + audio URL from Free Dictionary API."""
+    try:
+        resp = requests.get(
+            f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}",
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return {}
+
+        data = resp.json()
+        if not data or not isinstance(data, list):
+            return {}
+
+        entry = data[0]
+        phonetic_text = entry.get("phonetic", "")
+        phonetic_audio_link = ""
+
+        for p in entry.get("phonetics", []):
+            if not phonetic_text and p.get("text"):
+                phonetic_text = p["text"]
+            if not phonetic_audio_link and p.get("audio"):
+                phonetic_audio_link = p["audio"]
+
+        result = {}
+        if phonetic_text:
+            result["phonetic_text"] = phonetic_text
+        if phonetic_audio_link:
+            result["phonetic_audio_link"] = phonetic_audio_link
+        return result
+    except Exception as exc:
+        logger.warning("fetch_phonetics failed for '%s': %s", word, exc)
+        return {}
 
 
 def enrich_word(text: str) -> WordNlpData:
