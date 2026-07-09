@@ -1,15 +1,15 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.enrichment import EnrichWordRequest, EnrichWordResponse, WordNlpData
 from app.services.word_enricher import enrich_word, build_update_payload, fetch_phonetics
 from app.services.translation_service import get_translator
-from app.dependencies import get_supabase
+from app.dependencies import get_supabase, require_api_key
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["Enrichment"])
+router = APIRouter(prefix="/api", tags=["Enrichment"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("/enrich-word", response_model=EnrichWordResponse)

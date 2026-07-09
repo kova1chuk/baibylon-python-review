@@ -1,13 +1,14 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.translation import TranslateRequest, TranslateResponse
 from app.services.translation_service import get_translator
+from app.dependencies import require_api_key
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["Translation"])
+router = APIRouter(prefix="/api", tags=["Translation"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("/translate", response_model=TranslateResponse)

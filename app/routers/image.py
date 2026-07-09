@@ -2,15 +2,16 @@ import logging
 import os
 import tempfile
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 
 from app.config import settings
+from app.dependencies import require_api_key
 from app.models.image import ImageAnalysisResponse, OCRMetadata
 from app.processors.image_processor import ImageProcessor, OCREngine
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["Image"])
+router = APIRouter(prefix="/api", tags=["Image"], dependencies=[Depends(require_api_key)])
 
 ALLOWED_CONTENT_TYPES = {
     "image/jpeg",
