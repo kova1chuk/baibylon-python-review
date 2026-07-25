@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from app.config import settings
+
 
 @dataclass
 class ProcessingResult:
@@ -38,6 +40,8 @@ class BaseProcessor(ABC):
             return False, "Extracted text is empty"
         if len(text.strip()) < 10:
             return False, "Extracted text is too short (minimum 10 characters)"
+        if len(text) > settings.MAX_EXTRACTED_TEXT_CHARS:
+            return False, "Extracted text is too large"
         return True, ""
 
     def validate_file_extension(self, filename: str) -> tuple[bool, str]:

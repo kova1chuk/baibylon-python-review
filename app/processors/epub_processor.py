@@ -1,13 +1,16 @@
 """EPUB processing for extracting text from EPUB files."""
 
+import io
 import os
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from typing import Optional
 
 from bs4 import BeautifulSoup
 from ebooklib import epub
 
+from app.config import settings
 from app.processors.base import BaseProcessor, ProcessingResult
 
 
@@ -37,8 +40,16 @@ class EpubProcessor(BaseProcessor):
             return False, error_message, None
 
         file_size = len(file_content)
+        temp_file_path: str | None = None
 
         try:
+            with zipfile.ZipFile(io.BytesIO(file_content)) as archive:
+                entries = archive.infolist()
+                if len(entries) > settings.MAX_EPUB_ARCHIVE_ENTRIES:
+                    return False, "EPUB archive contains too many files", None
+                if sum(entry.file_size for entry in entries) > settings.MAX_EPUB_UNCOMPRESSED_BYTES:
+                    return False, "EPUB archive is too large after decompression", None
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".epub") as tmp:
                 tmp.write(file_content)
                 temp_file_path = tmp.name
@@ -56,6 +67,11 @@ class EpubProcessor(BaseProcessor):
             return True, "", file_info
 
         except Exception as exc:
+            if temp_file_path:
+                try:
+                    os.unlink(temp_file_path)
+                except OSError:
+                    pass
             error_msg = f"Failed to read EPUB file: {exc}"
             self.logger.error(error_msg)
             return False, error_msg, None
@@ -78,12 +94,17 @@ class EpubProcessor(BaseProcessor):
             return ""
 
     def extract_text_from_epub(self, book: epub.EpubBook) -> str:
-        text = ""
+        parts: list[str] = []
+        total_length = 0
         for item in book.get_items():
             if item.get_type() == 9:  # ITEM_DOCUMENT
                 soup = BeautifulSoup(item.get_content(), "html.parser")
-                text += soup.get_text() + " "
-        return text
+                part = soup.get_text()
+                total_length += len(part) + 1
+                if total_length > settings.MAX_EXTRACTED_TEXT_CHARS:
+                    raise ValueError("Extracted text is too large")
+                parts.append(part)
+        return " ".join(parts)
 
     def process_file(self, file_content: bytes, filename: str) -> ProcessingResult:
         self.log_processing_start(filename, len(file_content))

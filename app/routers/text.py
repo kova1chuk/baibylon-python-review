@@ -1,7 +1,9 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 
+from app.config import settings
 from app.dependencies import require_api_key
 from app.models.text import TextAnalysisRequest, TextAnalysisResponse
 from app.processors.text_processor import TextProcessor
@@ -13,25 +15,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Text Analysis"], dependencies=[Depends(require_api_key)])
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-
-
 async def _read_bounded(file: UploadFile) -> bytes:
-    if file.size is not None and file.size > MAX_UPLOAD_BYTES:
+    if file.size is not None and file.size > settings.MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 20MB)")
 
     chunks: list[bytes] = []
     total = 0
     while chunk := await file.read(1024 * 1024):
         total += len(chunk)
-        if total > MAX_UPLOAD_BYTES:
+        if total > settings.MAX_UPLOAD_BYTES:
             raise HTTPException(status_code=413, detail="File too large (max 20MB)")
         chunks.append(chunk)
     return b"".join(chunks)
 
 
 @router.post("/text", response_model=TextAnalysisResponse)
-async def analyze_plain_text(body: TextAnalysisRequest):
+def analyze_plain_text(body: TextAnalysisRequest):
     """Analyse plain text input for word and sentence statistics."""
     processor = TextProcessor()
     success, error_message, text_info = processor.process_text_input(body.text)
@@ -52,19 +51,8 @@ async def analyze_epub(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    content = await file.read()
-    processor = EpubProcessor()
-    result = processor.process_file(content, file.filename)
-
-    if not result.success:
-        raise HTTPException(status_code=400, detail=result.error_message)
-
-    return analyze_text(
-        result.extracted_text,
-        endpoint_type="epub",
-        file_info=result.file_info,
-        filename=file.filename,
-    )
+    content = await _read_bounded(file)
+    return await run_in_threadpool(_analyze_upload, EpubProcessor(), content, file.filename, "epub")
 
 
 @router.post("/subtitle", response_model=TextAnalysisResponse)
@@ -73,16 +61,25 @@ async def analyze_subtitle(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    content = await file.read()
-    processor = SubtitleProcessor()
-    result = processor.process_file(content, file.filename)
+    content = await _read_bounded(file)
+    return await run_in_threadpool(
+        _analyze_upload,
+        SubtitleProcessor(),
+        content,
+        file.filename,
+        "subtitle",
+    )
 
+
+def _analyze_upload(processor, content: bytes, filename: str, endpoint_type: str):
+    result = processor.process_file(content, filename)
     if not result.success:
-        raise HTTPException(status_code=400, detail=result.error_message)
+        status = 413 if "too large" in result.error_message.lower() else 400
+        raise HTTPException(status_code=status, detail=result.error_message)
 
     return analyze_text(
         result.extracted_text,
-        endpoint_type="subtitle",
+        endpoint_type=endpoint_type,
         file_info=result.file_info,
-        filename=file.filename,
+        filename=filename,
     )

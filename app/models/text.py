@@ -1,8 +1,15 @@
 from pydantic import BaseModel, Field
 
+from app.config import settings
+
 
 class TextAnalysisRequest(BaseModel):
-    text: str = Field(..., min_length=10, description="Text to analyse")
+    text: str = Field(
+        ...,
+        min_length=10,
+        max_length=settings.MAX_EXTRACTED_TEXT_CHARS,
+        description="Text to analyse",
+    )
     title: str | None = Field(None, description="Optional custom title")
 
 
