@@ -38,6 +38,35 @@ DEBUG=false
 Google credentials are optional and only needed for OCR flows that use Google
 Cloud. Keep credentials out of git.
 
+## Word Filtering
+
+Text analysis splits every token into three buckets so that names and noise
+never reach a learner's dictionary. Only `accepted` words are returned in
+`words`; the rest come back in `excluded_words` so consumers can report them.
+
+| Bucket | Rule |
+|---|---|
+| `accepted` | Known to WordNet, or wordfreq Zipf >= `WORD_FILTER_MIN_ZIPF` |
+| `proper_nouns` | Capitalised mid-sentence in >= `WORD_FILTER_PROPER_NOUN_RATIO` of its informative occurrences (min `WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES`), or never seen lowercase and absent from WordNet |
+| `unknown` | Fails the lexical check above |
+
+Sentence-initial words, all-caps tokens, title-cased headings (`WORD_FILTER_TITLECASE_SENTENCE_RATIO`),
+determiner-preceded titles ("the Professor"), function words and words above
+`WORD_FILTER_PROPER_NOUN_MAX_ZIPF` are never treated as proper nouns.
+
+```env
+WORD_FILTER_ENABLED=true
+WORD_FILTER_MIN_WORD_LENGTH=2
+WORD_FILTER_MIN_ZIPF=2.0
+WORD_FILTER_PROPER_NOUN_RATIO=0.8
+WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES=2
+WORD_FILTER_PROPER_NOUN_MAX_ZIPF=6.0
+WORD_FILTER_TITLECASE_SENTENCE_RATIO=0.7
+```
+
+`WORD_FILTER_ENABLED=false` restores the previous behaviour (lexical filter
+only, no `excluded_words` in the response).
+
 `ANALYZER_API_KEY` is required for every `/api/*` route. Send it in the
 `X-API-Key` header; `/health` remains public:
 

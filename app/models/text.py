@@ -13,6 +13,11 @@ class TextAnalysisRequest(BaseModel):
     title: str | None = Field(None, description="Optional custom title")
 
 
+class ExcludedWords(BaseModel):
+    proper_nouns: list[list] = Field(default_factory=list)  # [[word, count], ...]
+    unknown: list[list] = Field(default_factory=list)
+
+
 class TextAnalysisResponse(BaseModel):
     title: str
     words: list[list]  # [[word, count], ...]
@@ -22,3 +27,8 @@ class TextAnalysisResponse(BaseModel):
     total_sentences: int
     file_size: int | None = None
     filename: str | None = None
+    excluded_words: ExcludedWords | None = None
+    excluded_proper_noun_count: int | None = None
+    excluded_unknown_count: int | None = None
+    total_words_before_filter: int | None = None
+    total_unique_words_before_filter: int | None = None

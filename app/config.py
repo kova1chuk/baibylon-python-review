@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     MAX_EPUB_ARCHIVE_ENTRIES: int = 10_000
     MAX_EXTRACTED_TEXT_CHARS: int = 2_000_000
 
+    WORD_FILTER_ENABLED: bool = True
+    WORD_FILTER_MIN_WORD_LENGTH: int = 2
+    WORD_FILTER_MIN_ZIPF: float = 2.0
+    WORD_FILTER_PROPER_NOUN_RATIO: float = 0.8
+    WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES: int = 2
+    WORD_FILTER_PROPER_NOUN_MAX_ZIPF: float = 6.0
+    WORD_FILTER_TITLECASE_SENTENCE_RATIO: float = 0.7
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
