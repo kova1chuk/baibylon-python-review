@@ -28,8 +28,6 @@ Interactive docs:
 ## Environment
 
 ```env
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
 ANALYZER_API_KEY=
 DEEPL_API_KEY=
 GOOGLE_CLOUD_CREDENTIALS_PATH=
@@ -65,11 +63,17 @@ docker run --rm -p 8080:8080 --env-file .env vocairo-text-analyzer
 | `POST` | `/api/text` | Analyze plain text |
 | `POST` | `/api/epub` | Analyze EPUB files |
 | `POST` | `/api/subtitle` | Analyze subtitle files |
-| `POST` | `/api/enrich-word` | Enrich and persist word NLP data |
+| `POST` | `/api/enrich-word` | Fetch word NLP data (legacy-compatible request shape) |
 | `GET` | `/api/word/{word}/nlp` | Fetch NLP data for a word |
+| `GET` | `/api/word/{word}/phonetics` | Fetch phonetic text and audio |
 | `POST` | `/api/translate` | Translate text |
 | `POST` | `/api/image` | OCR image analysis |
 | `GET` | `/api/image/health` | OCR health check |
+
+The analyzer is stateless. Database persistence and batch enrichment are owned
+by the NestJS API, which calls these analysis endpoints and writes through
+Kysely (`POST /admin/words/{id}/reload` and
+`POST /admin/words/batch-enrich`).
 
 ## Structure
 

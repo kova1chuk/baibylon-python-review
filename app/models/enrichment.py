@@ -3,7 +3,11 @@ from pydantic import BaseModel, Field
 
 class EnrichWordRequest(BaseModel):
     text: str = Field(..., description="Word to enrich")
-    word_id: str | None = Field(None, description="UUID of existing en_words row")
+    word_id: str | None = Field(
+        None,
+        description="Deprecated and ignored; persistence is owned by the NestJS API",
+        deprecated=True,
+    )
 
 
 class WordSense(BaseModel):
@@ -35,4 +39,12 @@ class WordNlpData(BaseModel):
 class EnrichWordResponse(BaseModel):
     success: bool
     data: WordNlpData
-    db_updated: bool = False
+    db_updated: bool = Field(
+        False,
+        description="Always false; the analyzer does not have database access",
+    )
+
+
+class WordPhoneticsData(BaseModel):
+    phonetic_text: str = ""
+    phonetic_audio_link: str = ""
