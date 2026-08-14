@@ -6,10 +6,15 @@ from app.dependencies import require_api_key
 from app.models.enrichment import (
     EnrichWordRequest,
     EnrichWordResponse,
+    SupportedLanguagesResponse,
     WordNlpData,
     WordPhoneticsData,
+    WordZipfBatchRequest,
+    WordZipfBatchResponse,
+    WordZipfResult,
 )
-from app.services.word_enricher import enrich_word, fetch_phonetics
+from app.services.word_enricher import batch_zipf_frequency, enrich_word, fetch_phonetics
+from wordfreq import available_languages
 
 logger = logging.getLogger(__name__)
 
@@ -42,3 +47,20 @@ async def get_word_nlp(word_text: str):
 async def get_word_phonetics(word_text: str):
     """Return phonetic text and audio without persisting them."""
     return WordPhoneticsData(**fetch_phonetics(word_text))
+
+@router.post("/words/zipf-frequency", response_model=WordZipfBatchResponse)
+def get_words_zipf_frequency(body: WordZipfBatchRequest):
+    """Batch Zipf-frequency lookup, for bulk backfills that only need the number."""
+    supported, values = batch_zipf_frequency(body.words, body.lang)
+    return WordZipfBatchResponse(
+        lang_supported=supported,
+        results=[
+            WordZipfResult(text=text, zipf_frequency=value)
+            for text, value in zip(body.words, values)
+        ],
+    )
+
+@router.get("/languages/frequency-supported", response_model=SupportedLanguagesResponse)
+def get_frequency_supported_languages():
+    """Languages wordfreq has data for, so callers can preview coverage before running a batch."""
+    return SupportedLanguagesResponse(languages=sorted(available_languages().keys()))

@@ -48,3 +48,24 @@ class EnrichWordResponse(BaseModel):
 class WordPhoneticsData(BaseModel):
     phonetic_text: str = ""
     phonetic_audio_link: str = ""
+
+
+class WordZipfBatchRequest(BaseModel):
+    words: list[str] = Field(..., min_length=1, max_length=1000)
+    lang: str = Field("en", description="ISO 639-1 language code understood by wordfreq")
+
+
+class WordZipfResult(BaseModel):
+    text: str
+    zipf_frequency: float | None = Field(
+        None, description="None when `lang` has no wordfreq data"
+    )
+
+
+class WordZipfBatchResponse(BaseModel):
+    lang_supported: bool
+    results: list[WordZipfResult]
+
+
+class SupportedLanguagesResponse(BaseModel):
+    languages: list[str]

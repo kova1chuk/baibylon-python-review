@@ -2,7 +2,7 @@ import logging
 
 import nltk
 import requests
-from wordfreq import zipf_frequency, top_n_list
+from wordfreq import available_languages, zipf_frequency, top_n_list
 
 from app.models.enrichment import WordNlpData, WordSense
 
@@ -192,3 +192,18 @@ def enrich_word(text: str) -> WordNlpData:
         suggested_priority=_zipf_to_priority(zipf),
         primary_definition=primary_definition,
     )
+
+
+def batch_zipf_frequency(words: list[str], lang: str) -> tuple[bool, list[float | None]]:
+    """Look up wordfreq Zipf frequency for many words in one call.
+
+    Unlike `enrich_word`, this skips WordNet/synset work entirely — a
+    words.zipf_frequency backfill only needs the number, not a full
+    enrichment payload, and doing this in-process avoids per-word NLTK
+    overhead. Returns (False, [None, ...]) for a language wordfreq has no
+    data for, so the caller can leave those rows NULL instead of writing a
+    fabricated value.
+    """
+    if lang not in available_languages():
+        return False, [None for _ in words]
+    return True, [round(zipf_frequency(w.strip().lower(), lang), 2) for w in words]
