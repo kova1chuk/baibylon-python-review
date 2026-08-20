@@ -11,6 +11,7 @@ from starlette.datastructures import UploadFile
 from app.config import settings
 from app.processors.epub_processor import EpubProcessor
 from app.processors.subtitle_processor import SubtitleProcessor
+from app.routers.image import analyze_image
 from app.routers.text import _read_bounded, analyze_plain_text, analyze_subtitle
 
 
@@ -58,6 +59,23 @@ class UploadLimitsTest(unittest.TestCase):
 
     def test_plain_text_route_is_sync_for_fastapi_threadpool_execution(self):
         self.assertFalse(inspect.iscoroutinefunction(analyze_plain_text))
+
+    def test_image_processing_runs_in_the_threadpool(self):
+        upload = UploadFile(
+            file=io.BytesIO(b"image"),
+            filename="lesson.png",
+            size=5,
+            headers={"content-type": "image/png"},
+        )
+        sentinel = object()
+        with patch("app.routers.image.run_in_threadpool", new_callable=AsyncMock) as run:
+            run.return_value = sentinel
+            result = asyncio.run(
+                analyze_image(upload, engine=None, preprocess=True, validate_words=True)
+            )
+
+        self.assertIs(result, sentinel)
+        run.assert_awaited_once()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import logging
+from hashlib import sha256
 
 import nltk
 import requests
@@ -87,7 +88,12 @@ def fetch_phonetics(word: str) -> dict:
             result["phonetic_audio_link"] = phonetic_audio_link
         return result
     except Exception as exc:
-        logger.warning("fetch_phonetics failed for '%s': %s", word, exc)
+        logger.warning(
+            "fetch_phonetics failed ref=%s text_len=%d error_type=%s",
+            sha256(word.encode("utf-8")).hexdigest()[:12],
+            len(word),
+            type(exc).__name__,
+        )
         return {}
 
 

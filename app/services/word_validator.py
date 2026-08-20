@@ -7,6 +7,7 @@ a Zipf frequency >= WORD_FILTER_MIN_ZIPF. Everything else is dropped as noise.
 """
 
 import logging
+from hashlib import sha256
 
 import nltk
 from nltk.corpus import wordnet as wn
@@ -46,21 +47,21 @@ def is_valid_english_word(word: str) -> bool:
     word = word.lower().strip()
 
     if not word or len(word) < settings.WORD_FILTER_MIN_WORD_LENGTH:
-        logger.debug("REJECT %-20s  reason=too_short", repr(word))
+        logger.debug("REJECT %s reason=too_short", _word_ref(word))
         return False
 
     in_wordnet = bool(wn.synsets(word))
     zipf = zipf_frequency(word, "en")
 
     if in_wordnet:
-        logger.debug("ACCEPT %-20s  wordnet=yes  zipf=%.2f", word, zipf)
+        logger.debug("ACCEPT %s wordnet=yes zipf=%.2f", _word_ref(word), zipf)
         return True
 
     if zipf >= settings.WORD_FILTER_MIN_ZIPF:
-        logger.debug("ACCEPT %-20s  wordnet=no   zipf=%.2f  (freq pass)", word, zipf)
+        logger.debug("ACCEPT %s wordnet=no zipf=%.2f (freq pass)", _word_ref(word), zipf)
         return True
 
-    logger.debug("REJECT %-20s  wordnet=no   zipf=%.2f", word, zipf)
+    logger.debug("REJECT %s wordnet=no zipf=%.2f", _word_ref(word), zipf)
     return False
 
 
@@ -73,3 +74,8 @@ def filter_valid_words(words: list[str]) -> list[str]:
     if dropped:
         logger.info("Filtered words: %d/%d kept, %d dropped", len(valid), total, dropped)
     return valid
+
+
+def _word_ref(word: str) -> str:
+    digest = sha256(word.encode("utf-8")).hexdigest()[:12]
+    return f"ref={digest} text_len={len(word)}"

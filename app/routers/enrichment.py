@@ -1,6 +1,8 @@
 import logging
+from hashlib import sha256
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from app.dependencies import require_api_key
 from app.models.enrichment import (
@@ -25,9 +27,13 @@ router = APIRouter(prefix="/api", tags=["Enrichment"], dependencies=[Depends(req
 async def enrich_word_endpoint(body: EnrichWordRequest):
     """Return word enrichment data without persisting it."""
     try:
-        data = enrich_word(body.text)
-    except Exception:
-        logger.exception("enrich_word failed for text=%s", body.text)
+        data = await run_in_threadpool(enrich_word, body.text)
+    except Exception as exc:
+        logger.error(
+            "enrich_word failed %s error_type=%s",
+            _text_ref(body.text),
+            type(exc).__name__,
+        )
         raise HTTPException(status_code=500, detail="Enrichment failed")
 
     return EnrichWordResponse(success=True, data=data, db_updated=False)
@@ -37,16 +43,21 @@ async def enrich_word_endpoint(body: EnrichWordRequest):
 async def get_word_nlp(word_text: str):
     """Return NLP data for a word (enrichment without DB write)."""
     try:
-        return enrich_word(word_text)
-    except Exception:
-        logger.exception("enrich_word failed for text=%s", word_text)
+        return await run_in_threadpool(enrich_word, word_text)
+    except Exception as exc:
+        logger.error(
+            "enrich_word failed %s error_type=%s",
+            _text_ref(word_text),
+            type(exc).__name__,
+        )
         raise HTTPException(status_code=500, detail="Enrichment failed")
 
 
 @router.get("/word/{word_text}/phonetics", response_model=WordPhoneticsData)
 async def get_word_phonetics(word_text: str):
     """Return phonetic text and audio without persisting them."""
-    return WordPhoneticsData(**fetch_phonetics(word_text))
+    return WordPhoneticsData(**(await run_in_threadpool(fetch_phonetics, word_text)))
+
 
 @router.post("/words/zipf-frequency", response_model=WordZipfBatchResponse)
 def get_words_zipf_frequency(body: WordZipfBatchRequest):
@@ -60,7 +71,13 @@ def get_words_zipf_frequency(body: WordZipfBatchRequest):
         ],
     )
 
+
 @router.get("/languages/frequency-supported", response_model=SupportedLanguagesResponse)
 def get_frequency_supported_languages():
     """Languages wordfreq has data for, so callers can preview coverage before running a batch."""
     return SupportedLanguagesResponse(languages=sorted(available_languages().keys()))
+
+
+def _text_ref(text: str) -> str:
+    digest = sha256(text.encode("utf-8")).hexdigest()[:12]
+    return f"ref={digest} text_len={len(text)}"

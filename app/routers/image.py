@@ -3,6 +3,7 @@ import os
 import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.dependencies import require_api_key
@@ -48,7 +49,23 @@ async def analyze_image(
 
     suffix = os.path.splitext(image.filename or "img")[1] or ".png"
     content = await image.read()
+    return await run_in_threadpool(
+        _process_image_content,
+        content,
+        suffix,
+        ocr_engine,
+        preprocess,
+        validate_words,
+    )
 
+
+def _process_image_content(
+    content: bytes,
+    suffix: str,
+    ocr_engine: OCREngine | None,
+    preprocess: bool,
+    validate_words: bool,
+) -> ImageAnalysisResponse:
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(content)
         temp_path = tmp.name
