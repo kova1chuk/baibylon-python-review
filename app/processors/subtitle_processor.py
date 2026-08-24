@@ -53,7 +53,8 @@ class SubtitleProcessor(BaseProcessor):
                 content = file_content.decode("latin-1")
                 encoding = "latin-1"
             except Exception as exc:
-                return False, f"Failed to decode subtitle file: {exc}", None
+                self.log_processing_error(filename, exc)
+                return False, "Failed to decode subtitle file", None
 
         return True, "", SubtitleFileInfo(
             filename=filename,
@@ -147,7 +148,6 @@ class SubtitleProcessor(BaseProcessor):
             self.log_processing_success(filename, len(extracted_text))
             return self.create_success_result(extracted_text, file_info)
 
-        except Exception as e:
-            error_msg = f"Failed to extract text from subtitles: {e}"
-            self.log_processing_error(filename, error_msg)
-            return self.create_error_result(error_msg)
+        except Exception as exc:
+            self.log_processing_error(filename, exc)
+            return self.create_error_result("Failed to extract text from subtitles")

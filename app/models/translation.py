@@ -52,3 +52,20 @@ class TranslateBatchRequest(BaseModel):
 
 class TranslateBatchResponse(BaseModel):
     results: list[TranslateResponse]
+
+
+ValidationText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
+]
+
+
+class ValidateTranslationRequest(BaseModel):
+    source: ValidationText
+    target: ValidationText
+    native_lang: LanguageCode
+
+
+class ValidateTranslationResponse(BaseModel):
+    is_valid: bool
+    score: float = Field(..., ge=0, le=1)

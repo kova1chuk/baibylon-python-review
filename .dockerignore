@@ -2,6 +2,16 @@
 .git
 .gitignore
 
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+credentials/
+*key*.json
+*.pem
+*.p12
+*.pfx
+
 # Python
 __pycache__
 *.pyc
@@ -23,6 +33,7 @@ coverage.xml
 .mypy_cache
 .pytest_cache
 .hypothesis
+.nltk_data
 
 # Django
 *.log
@@ -62,4 +73,6 @@ README.md
 
 # Testing
 test_*.py
-*_test.py 
+*_test.py
+!tests/
+!tests/**

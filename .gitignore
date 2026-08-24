@@ -63,6 +63,7 @@ ehthumbs.db
 Thumbs.db
 
 # Python
+.nltk_data/
 *.pyc
 *.pyo
 *.pyd

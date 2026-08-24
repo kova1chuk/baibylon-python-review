@@ -12,15 +12,21 @@ concurrency:
 
 jobs:
   container:
-    name: Container
+    name: Test and build container
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build test image
+        run: docker build --target test --tag vocairo-text-analyzer:test .
+
+      - name: Run test suite in the locked image
+        run: docker run --rm --network none vocairo-text-analyzer:test
 
       - name: Build production image
-        run: docker build .
+        run: docker build --target production .
 
   notify:
     name: Notify Discord

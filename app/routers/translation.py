@@ -11,6 +11,8 @@ from app.models.translation import (
     TranslateBatchResponse,
     TranslateRequest,
     TranslateResponse,
+    ValidateTranslationRequest,
+    ValidateTranslationResponse,
 )
 from app.services.translation_service import get_translator, translation_ref
 
@@ -87,3 +89,36 @@ async def translate_batch(body: TranslateBatchRequest):
             type(exc).__name__,
         )
         raise HTTPException(status_code=500, detail="Translation batch failed")
+
+
+@router.post("/translation/validate", response_model=ValidateTranslationResponse)
+async def validate_translation(body: ValidateTranslationRequest):
+    translator = get_translator()
+
+    try:
+        return await asyncio.wait_for(
+            run_in_threadpool(
+                translator.validate_translation,
+                body.source,
+                body.target,
+                body.native_lang,
+            ),
+            timeout=settings.TRANSLATION_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.warning(
+            "Translation validation timed out %s candidate_len=%d",
+            translation_ref(body.source, "en", body.native_lang),
+            len(body.target),
+        )
+        raise HTTPException(status_code=504, detail="Translation validation timed out")
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Translation service unavailable")
+    except Exception as exc:
+        logger.error(
+            "Translation validation failed %s candidate_len=%d error_type=%s",
+            translation_ref(body.source, "en", body.native_lang),
+            len(body.target),
+            type(exc).__name__,
+        )
+        raise HTTPException(status_code=500, detail="Translation validation failed")

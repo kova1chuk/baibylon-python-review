@@ -8,15 +8,26 @@ from threading import Lock
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 
 from app.config import settings
-from app.models.translation import TranslateBatchRequest, TranslateRequest, TranslateResponse
+from app.main import app
+from app.models.translation import (
+    TranslateBatchRequest,
+    TranslateRequest,
+    TranslateResponse,
+    ValidateTranslationResponse,
+)
 from app.routers.health import health_check
 from app.routers.text import analyze_epub
 from app.routers.translation import translate, translate_batch
-from app.services.translation_service import TranslationService, translation_key
+from app.services.translation_service import (
+    TranslationService,
+    translation_key,
+    translation_similarity,
+)
 
 
 def response(text: str) -> TranslateResponse:
@@ -29,6 +40,27 @@ def response(text: str) -> TranslateResponse:
 
 
 class TranslationRoutesTest(unittest.TestCase):
+    def test_validation_endpoint_requires_api_key_and_matches_backend_contract(self):
+        class Validator:
+            def validate_translation(self, source, target, native_lang):
+                return ValidateTranslationResponse(is_valid=True, score=0.97)
+
+        body = {"source": "apple", "target": "яблуко", "native_lang": "uk"}
+        with (
+            patch.object(settings, "ANALYZER_API_KEY", "internal-secret"),
+            patch("app.routers.translation.get_translator", return_value=Validator()),
+        ):
+            client = TestClient(app)
+            self.assertEqual(client.post("/api/translation/validate", json=body).status_code, 401)
+            response = client.post(
+                "/api/translation/validate",
+                json=body,
+                headers={"X-API-Key": "internal-secret"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"is_valid": True, "score": 0.97})
+
     def test_slow_provider_does_not_block_health(self):
         class SlowTranslator:
             def translate_word(self, text, source, target, context=None):
@@ -143,6 +175,11 @@ class TranslationRoutesTest(unittest.TestCase):
 
 
 class TranslationServiceTest(unittest.TestCase):
+    def test_translation_similarity_normalizes_case_spacing_and_punctuation(self):
+        self.assertEqual(translation_similarity("  Яблуко! ", "яблуко"), 1.0)
+        self.assertLess(translation_similarity("яблуко", "груша"), 0.82)
+        self.assertEqual(translation_similarity("яблуко", "!!!"), 0.0)
+
     def test_singleflight_keys_preserve_semantic_case_and_context(self):
         self.assertNotEqual(
             translation_key("Polish", "en", "uk"),
@@ -174,6 +211,19 @@ class TranslationServiceTest(unittest.TestCase):
 
         self.assertEqual(calls, 1)
         self.assertEqual([item.translated_text for item in results], ["море", "море"])
+
+    def test_google_fallback_does_not_claim_deepl_context_usage(self):
+        service = TranslationService()
+        service._deepl = object()
+
+        with (
+            patch.object(service, "_translate_deepl", return_value=None),
+            patch.object(service, "_translate_google", return_value="берег"),
+        ):
+            result = service.translate_word("bank", "en", "uk", "river bank")
+
+        self.assertEqual(result.translated_text, "берег")
+        self.assertFalse(result.context_used)
 
     def test_google_batch_fallback_has_bounded_concurrency_and_preserves_order(self):
         service = TranslationService()
@@ -210,7 +260,10 @@ class TranslationServiceTest(unittest.TestCase):
         secret = "customer confidential sentence"
 
         with (
-            patch("deep_translator.GoogleTranslator.translate", side_effect=ValueError(secret)),
+            patch(
+                "app.services.translation_service.requests.get",
+                side_effect=ValueError(secret),
+            ),
             self.assertLogs("app.services.translation_service", level=logging.WARNING) as captured,
         ):
             with self.assertRaises(RuntimeError) as raised:
@@ -218,6 +271,29 @@ class TranslationServiceTest(unittest.TestCase):
 
         self.assertNotIn(secret, "\n".join(captured.output))
         self.assertNotIn(secret, str(raised.exception))
+
+    def test_google_provider_network_call_has_a_hard_timeout(self):
+        service = TranslationService()
+        service._deepl = None
+
+        class ProviderResponse:
+            text = '<div class="result-container">море</div>'
+
+            @staticmethod
+            def raise_for_status():
+                return None
+
+        with (
+            patch.object(settings, "TRANSLATION_PROVIDER_TIMEOUT_SECONDS", 1.25),
+            patch(
+                "app.services.translation_service.requests.get",
+                return_value=ProviderResponse(),
+            ) as request,
+        ):
+            translated = service._translate_google("sea", "en", "uk")
+
+        self.assertEqual(translated, "море")
+        self.assertEqual(request.call_args.kwargs["timeout"], (1.25, 1.25))
 
 
 if __name__ == "__main__":

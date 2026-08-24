@@ -9,11 +9,11 @@ a Zipf frequency >= WORD_FILTER_MIN_ZIPF. Everything else is dropped as noise.
 import logging
 from hashlib import sha256
 
-import nltk
 from nltk.corpus import wordnet as wn
 from wordfreq import zipf_frequency
 
 from app.config import settings
+from app.services.nltk_resources import ensure_nltk_data
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,7 @@ def _ensure_nltk() -> None:
     global _nltk_ready
     if _nltk_ready:
         return
-    nltk.download("wordnet", quiet=True)
-    nltk.download("omw-1.4", quiet=True)
+    ensure_nltk_data()
     _nltk_ready = True
 
 

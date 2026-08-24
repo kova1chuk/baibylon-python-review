@@ -3,31 +3,17 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from starlette.concurrency import run_in_threadpool
 
-from app.config import settings
 from app.dependencies import require_api_key
 from app.models.text import TextAnalysisRequest, TextAnalysisResponse
 from app.processors.text_processor import TextProcessor
 from app.processors.epub_processor import EpubProcessor
 from app.processors.subtitle_processor import SubtitleProcessor
 from app.processors.text_analysis import analyze_text
+from app.upload import read_bounded_upload
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Text Analysis"], dependencies=[Depends(require_api_key)])
-
-async def _read_bounded(file: UploadFile) -> bytes:
-    if file.size is not None and file.size > settings.MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File too large (max 20MB)")
-
-    chunks: list[bytes] = []
-    total = 0
-    while chunk := await file.read(1024 * 1024):
-        total += len(chunk)
-        if total > settings.MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="File too large (max 20MB)")
-        chunks.append(chunk)
-    return b"".join(chunks)
-
 
 @router.post("/text", response_model=TextAnalysisResponse)
 def analyze_plain_text(body: TextAnalysisRequest):
@@ -51,7 +37,7 @@ async def analyze_epub(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    content = await _read_bounded(file)
+    content = await read_bounded_upload(file)
     return await run_in_threadpool(_analyze_upload, EpubProcessor(), content, file.filename, "epub")
 
 
@@ -61,7 +47,7 @@ async def analyze_subtitle(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    content = await _read_bounded(file)
+    content = await read_bounded_upload(file)
     return await run_in_threadpool(
         _analyze_upload,
         SubtitleProcessor(),

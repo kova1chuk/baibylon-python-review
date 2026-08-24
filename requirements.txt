@@ -1,31 +1,45 @@
-# Core
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-python-multipart>=0.0.9
-pydantic>=2.0
-pydantic-settings>=2.0
-
-# NLP & Language
-nltk>=3.9.1
-wordfreq>=3.0.0
-langdetect>=1.0.9
-
-# Translation
-deepl>=1.18.0
-deep-translator>=1.11.4
-
-# Text Processing
-beautifulsoup4>=4.13.4
-lxml>=5.4.0
-ebooklib>=0.19
-regex>=2024.11.6
-
-# Image/OCR (stubs - keep for future)
-Pillow>=10.4.0
-pytesseract>=0.3.10
-
-# HTTP
-requests>=2.31.0
-
-# Config
-python-dotenv>=1.0.0
+# Complete runtime lock for Python 3.12 on Linux.
+# Direct requirements live in requirements.in. Refresh both files together and
+# verify the production Docker image before accepting dependency changes.
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.14.2
+beautifulsoup4==4.15.0
+certifi==2026.7.22
+charset-normalizer==3.5.1
+click==8.4.2
+defusedxml==0.7.1
+EbookLib==0.20
+fastapi==0.141.1
+ftfy==6.3.1
+h11==0.16.0
+httptools==0.8.0
+idna==3.19
+joblib==1.5.3
+langcodes==3.5.1
+langdetect==1.0.9
+locate==1.1.1
+lxml==6.1.2
+msgpack==1.2.1
+nltk==3.10.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
+pydantic_core==2.46.4
+python-dotenv==1.2.3
+python-multipart==0.0.32
+PyYAML==6.0.3
+regex==2026.7.19
+requests==2.34.2
+six==1.17.0
+soupsieve==2.9.2
+starlette==1.6.0
+tqdm==4.70.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+urllib3==2.7.0
+uvicorn==0.52.4
+uvloop==0.22.1
+watchfiles==1.2.0
+wcwidth==0.8.2
+websockets==17.0.1
+wordfreq==3.1.1

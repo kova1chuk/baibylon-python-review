@@ -1,8 +1,8 @@
 # Vocairo Text Analyzer
 
-FastAPI service for plain-text, EPUB, subtitle, word-enrichment, translation,
-and OCR analysis. It is consumed by the NestJS backend and runs locally on port
-8080.
+FastAPI service for plain-text, EPUB, subtitle, word-enrichment, and translation
+analysis. It is consumed by the NestJS backend and runs locally on port 8080.
+The reserved image routes report `503` until a production OCR adapter exists.
 
 ## Local Development
 
@@ -10,9 +10,15 @@ and OCR analysis. It is consumed by the NestJS backend and runs locally on port
 cd /Users/oleks/Work/Vocairo/vocairo_text_analyzer
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-test.txt
+python -m nltk.downloader -d "$PWD/.nltk_data" punkt punkt_tab wordnet omw-1.4
+export NLTK_DATA="$PWD/.nltk_data"
 uvicorn app.main:app --reload --port 8080
 ```
+
+Runtime code never downloads NLP data. Production and CI use the checksum-
+verified corpora baked into the pinned Docker image; the command above is only
+the explicit local bootstrap path.
 
 Verify:
 
@@ -30,13 +36,9 @@ Interactive docs:
 ```env
 ANALYZER_API_KEY=
 DEEPL_API_KEY=
-GOOGLE_CLOUD_CREDENTIALS_PATH=
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3006
 DEBUG=false
 ```
-
-Google credentials are optional and only needed for OCR flows that use Google
-Cloud. Keep credentials out of git.
 
 ## Word Filtering
 
@@ -84,6 +86,13 @@ docker build -t vocairo-text-analyzer .
 docker run --rm -p 8080:8080 --env-file .env vocairo-text-analyzer
 ```
 
+Run the exact CI test environment without network access:
+
+```bash
+docker build --target test -t vocairo-text-analyzer:test .
+docker run --rm --network none vocairo-text-analyzer:test
+```
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -96,13 +105,22 @@ docker run --rm -p 8080:8080 --env-file .env vocairo-text-analyzer
 | `GET` | `/api/word/{word}/nlp` | Fetch NLP data for a word |
 | `GET` | `/api/word/{word}/phonetics` | Fetch phonetic text and audio |
 | `POST` | `/api/translate` | Translate text |
-| `POST` | `/api/image` | OCR image analysis |
-| `GET` | `/api/image/health` | OCR health check |
+| `POST` | `/api/translate/batch` | Translate a bounded batch |
+| `POST` | `/api/translation/validate` | Validate a candidate translation for NestJS |
+| `POST` | `/api/image` | Reserved OCR endpoint; returns `503` until a real OCR adapter is configured |
+| `GET` | `/api/image/health` | Honest OCR capability status (`503` while unavailable) |
 
 The analyzer is stateless. Database persistence and batch enrichment are owned
 by the NestJS API, which calls these analysis endpoints and writes through
 Kysely (`POST /admin/words/{id}/reload` and
 `POST /admin/words/batch-enrich`).
+
+Active file-analysis endpoints reject a declared oversize body and enforce
+`MAX_UPLOAD_BYTES` while reading the already parsed `UploadFile`. In the live
+topology, NestJS also caps multipart bodies before forwarding them. A direct
+public analyzer deployment must additionally enforce a request-body limit at
+its ingress/reverse proxy because Starlette may spool multipart files before
+the route reads them.
 
 ## Structure
 

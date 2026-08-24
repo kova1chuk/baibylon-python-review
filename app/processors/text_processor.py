@@ -42,10 +42,9 @@ class TextProcessor(BaseProcessor):
             )
             self.log_processing_success("text input", len(text))
             return True, "", text_info
-        except Exception as e:
-            error_msg = f"Failed to process text input: {e}"
-            self.log_processing_error("text input", error_msg)
-            return False, error_msg, None
+        except Exception as exc:
+            self.log_processing_error("text input", exc)
+            return False, "Failed to process text input", None
 
     def process_file(self, file_content: bytes, filename: str) -> ProcessingResult:
         try:
@@ -54,7 +53,6 @@ class TextProcessor(BaseProcessor):
             if not success:
                 return self.create_error_result(error_message)
             return self.create_success_result(text_info.cleaned_text, text_info)
-        except Exception as e:
-            error_msg = f"Failed to process text file: {e}"
-            self.log_processing_error(filename, error_msg)
-            return self.create_error_result(error_msg)
+        except Exception as exc:
+            self.log_processing_error(filename, exc)
+            return self.create_error_result("Failed to process text file")

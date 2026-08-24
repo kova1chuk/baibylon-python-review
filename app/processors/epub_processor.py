@@ -72,9 +72,8 @@ class EpubProcessor(BaseProcessor):
                     os.unlink(temp_file_path)
                 except OSError:
                     pass
-            error_msg = f"Failed to read EPUB file: {exc}"
-            self.logger.error(error_msg)
-            return False, error_msg, None
+            self.log_processing_error(filename, exc)
+            return False, "Invalid or unreadable EPUB file", None
 
     def extract_title_from_epub(self, book: epub.EpubBook) -> str:
         try:
@@ -90,7 +89,9 @@ class EpubProcessor(BaseProcessor):
                         return title.strip()
             return ""
         except Exception as exc:
-            self.logger.warning("Failed to extract title from EPUB metadata: %s", exc)
+            self.logger.warning(
+                "Failed to extract EPUB title error_type=%s", type(exc).__name__
+            )
             return ""
 
     def extract_text_from_epub(self, book: epub.EpubBook) -> str:
@@ -119,7 +120,9 @@ class EpubProcessor(BaseProcessor):
             try:
                 os.unlink(file_info.temp_file_path)
             except Exception as exc:
-                self.logger.warning("Failed to clean up temporary file: %s", exc)
+                self.logger.warning(
+                    "Failed to clean up temporary EPUB error_type=%s", type(exc).__name__
+                )
 
             is_valid, error_message = self.validate_text_content(extracted_text)
             if not is_valid:
@@ -128,11 +131,12 @@ class EpubProcessor(BaseProcessor):
             self.log_processing_success(filename, len(extracted_text))
             return self.create_success_result(extracted_text, file_info)
 
-        except Exception as e:
+        except Exception as exc:
             try:
                 os.unlink(file_info.temp_file_path)
             except Exception:
                 pass
-            error_msg = f"Failed to extract text from EPUB: {e}"
-            self.log_processing_error(filename, error_msg)
-            return self.create_error_result(error_msg)
+            self.log_processing_error(filename, exc)
+            if isinstance(exc, ValueError) and exc.args == ("Extracted text is too large",):
+                return self.create_error_result("Extracted text is too large")
+            return self.create_error_result("Failed to extract text from EPUB")

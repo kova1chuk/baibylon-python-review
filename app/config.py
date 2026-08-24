@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     ANALYZER_API_KEY: str = ""
     DEEPL_API_KEY: str = ""
-    GOOGLE_CLOUD_CREDENTIALS_PATH: str = ""
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3006"
     DEBUG: bool = False
     MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
@@ -16,6 +15,8 @@ class Settings(BaseSettings):
     TRANSLATION_BATCH_MAX_ITEMS: int = 100
     TRANSLATION_BATCH_MAX_TOTAL_CHARS: int = 20_000
     TRANSLATION_BATCH_CONCURRENCY: int = 4
+    TRANSLATION_PROVIDER_TIMEOUT_SECONDS: float = 3.5
+    TRANSLATION_PROVIDER_CONCURRENCY: int = 8
 
     WORD_FILTER_ENABLED: bool = True
     WORD_FILTER_MIN_WORD_LENGTH: int = 2

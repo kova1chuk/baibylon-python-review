@@ -1,24 +1,12 @@
 import logging
 import re
 
-import nltk
 from nltk.tokenize import sent_tokenize
 
+from app.services.nltk_resources import ensure_nltk_data
 from app.services.word_validator import filter_valid_words
 
 logger = logging.getLogger(__name__)
-
-
-def ensure_nltk_data() -> None:
-    """Download required NLTK data packages."""
-    for pkg in ("punkt", "punkt_tab", "wordnet", "omw-1.4"):
-        try:
-            nltk.download(pkg, quiet=True)
-        except Exception as e:
-            logger.warning("Could not download NLTK package %s: %s", pkg, e)
-    logger.info("NLTK data ready")
-
-
 def tokenize_sentences(text: str) -> list[str]:
     """Tokenize text into sentences with a regex fallback."""
     try:

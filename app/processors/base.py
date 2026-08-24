@@ -1,5 +1,6 @@
 """Base processor class for file processing operations."""
 
+import hashlib
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -24,14 +25,31 @@ class BaseProcessor(ABC):
     def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
+    @staticmethod
+    def file_reference(filename: str) -> str:
+        digest = hashlib.sha256(filename.encode("utf-8", errors="replace")).hexdigest()[:12]
+        return f"sha256:{digest};chars={len(filename)}"
+
     def log_processing_start(self, filename: str, file_size: int) -> None:
-        self.logger.info("Starting processing of %s (size: %d bytes)", filename, file_size)
+        self.logger.info(
+            "Starting file processing file_ref=%s bytes=%d",
+            self.file_reference(filename),
+            file_size,
+        )
 
     def log_processing_success(self, filename: str, text_length: int) -> None:
-        self.logger.info("Successfully processed %s (extracted %d characters)", filename, text_length)
+        self.logger.info(
+            "Completed file processing file_ref=%s extracted_chars=%d",
+            self.file_reference(filename),
+            text_length,
+        )
 
-    def log_processing_error(self, filename: str, error_message: str) -> None:
-        self.logger.error("Failed to process %s: %s", filename, error_message)
+    def log_processing_error(self, filename: str, error: BaseException) -> None:
+        self.logger.error(
+            "File processing failed file_ref=%s error_type=%s",
+            self.file_reference(filename),
+            type(error).__name__,
+        )
 
     def validate_text_content(self, text: str) -> tuple[bool, str]:
         if not text:
