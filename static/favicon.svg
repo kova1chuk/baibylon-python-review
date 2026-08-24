@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28.2 24" role="img" aria-label="Vocairo">
+  <style>
+    :root { --ink: #f1ede5; --accent: #7fd0bb; }
+    @media (prefers-color-scheme: light) { :root { --ink: #181b21; --accent: #2f6b5e; } }
+  </style>
+  <rect x="0" y="0" width="3" height="9" rx="1.5" fill="var(--ink)"/><rect x="4.2" y="0" width="3" height="13" rx="1.5" fill="var(--ink)"/><rect x="8.4" y="0" width="3" height="18" rx="1.5" fill="var(--ink)"/><rect x="12.6" y="0" width="3" height="24" rx="1.5" fill="var(--accent)"/><rect x="16.8" y="0" width="3" height="18" rx="1.5" fill="var(--ink)"/><rect x="21" y="0" width="3" height="13" rx="1.5" fill="var(--ink)"/><rect x="25.2" y="0" width="3" height="9" rx="1.5" fill="var(--ink)"/>
+</svg>
