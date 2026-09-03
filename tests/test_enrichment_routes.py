@@ -4,9 +4,22 @@ from unittest.mock import AsyncMock, patch
 
 from app.models.enrichment import EnrichWordRequest, WordNlpData
 from app.routers.enrichment import enrich_word_endpoint, get_word_phonetics
+from app.services.word_enricher import enrich_word
 
 
 class EnrichmentRoutesTest(unittest.TestCase):
+    def test_inflected_verb_primary_definition_uses_base_lemma(self):
+        self.assertEqual(
+            enrich_word("deriving").primary_definition,
+            "reason by deduction; establish by deduction",
+        )
+
+    def test_exact_surface_sense_wins_before_base_lemma(self):
+        self.assertEqual(
+            enrich_word("derived").primary_definition,
+            "formed or developed from something else; not original; - John Dewey",
+        )
+
     def test_legacy_enrich_endpoint_is_stateless(self):
         data = WordNlpData(
             zipf_frequency=5.2,

@@ -171,9 +171,19 @@ def enrich_word(text: str) -> WordNlpData:
     if synsets:
         best_ss = max(
             synsets,
-            key=lambda ss: max(
-                (l.count() for l in ss.lemmas() if l.name().lower() == word),
-                default=0,
+            key=lambda ss: (
+                max(
+                    (l.count() for l in ss.lemmas() if l.name().lower() == word),
+                    default=0,
+                ),
+                max(
+                    (
+                        l.count()
+                        for l in ss.lemmas()
+                        if l.name().lower() == (wn.morphy(word, ss.pos()) or word)
+                    ),
+                    default=0,
+                ),
             ),
         )
         best_def = best_ss.definition()
