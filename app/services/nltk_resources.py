@@ -9,6 +9,9 @@ _REQUIRED_RESOURCES = (
     "tokenizers/punkt_tab",
     "corpora/wordnet.zip",
     "corpora/omw-1.4.zip",
+    "taggers/averaged_perceptron_tagger_eng",
+    "chunkers/maxent_ne_chunker_tab",
+    "corpora/words",
 )
 _ready = False
 

@@ -42,32 +42,35 @@ DEBUG=false
 
 ## Word Filtering
 
-Text analysis splits every token into three buckets so that names and noise
-never reach a learner's dictionary. Only `accepted` words are returned in
-`words`; the rest come back in `excluded_words` so consumers can report them.
+Text analysis returns candidates in `words` and diagnostic exclusions in
+`excluded_words`. Final admission belongs to NestJS, which corroborates morphology,
+POS, contextual names and frequency with dictionary sources before creating words.
 
 | Bucket | Rule |
 |---|---|
-| `accepted` | Known to WordNet, or wordfreq Zipf >= `WORD_FILTER_MIN_ZIPF` |
-| `proper_nouns` | Capitalised mid-sentence in >= `WORD_FILTER_PROPER_NOUN_RATIO` of its informative occurrences (min `WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES`), or never seen lowercase and absent from WordNet |
-| `unknown` | Fails the lexical check above |
+| `accepted` | WordNet or frequency supports a candidate; NestJS still validates it |
+| `proper_nouns` | Contextual NER identifies a name and WordNet has no common-word evidence |
+| `unknown` | No preliminary lexical support |
 
-Sentence-initial words, all-caps tokens, title-cased headings (`WORD_FILTER_TITLECASE_SENTENCE_RATIO`),
-determiner-preceded titles ("the Professor"), function words and words above
-`WORD_FILTER_PROPER_NOUN_MAX_ZIPF` are never treated as proper nouns.
+Capitalization and frequency alone never identify a proper noun. Ambiguous common
+words such as apple remain candidates for NestJS's dictionary/context decision.
+NER is statistical and may be wrong; the backend does not treat it as an absolute veto.
 
 ```env
 WORD_FILTER_ENABLED=true
 WORD_FILTER_MIN_WORD_LENGTH=2
 WORD_FILTER_MIN_ZIPF=2.0
-WORD_FILTER_PROPER_NOUN_RATIO=0.8
-WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES=2
-WORD_FILTER_PROPER_NOUN_MAX_ZIPF=6.0
-WORD_FILTER_TITLECASE_SENTENCE_RATIO=0.7
 ```
 
-`WORD_FILTER_ENABLED=false` restores the previous behaviour (lexical filter
-only, no `excluded_words` in the response).
+`WORD_FILTER_ENABLED=false` skips this preliminary classification; it does not
+bypass NestJS admission. The former capitalization thresholds have been removed.
+
+`POST /api/lexical-evidence` accepts `{text, language, context?: {text, start, end}}`.
+Context offsets are Unicode code points; the NestJS adapter converts UTF-16 offsets.
+It returns all WordNet lemma candidates, optional Zipf frequency and optional NER
+label. English morphology/NER never run under a different language code. Unsupported
+wordfreq languages return null frequency. Provider/resource failures return 503.
+The Docker image pins and smoke-tests the NLTK models; no runtime downloads occur.
 
 `ANALYZER_API_KEY` is required for every `/api/*` route. Send it in the
 `X-API-Key` header; `/health` remains public:

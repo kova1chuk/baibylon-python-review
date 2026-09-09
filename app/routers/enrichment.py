@@ -8,6 +8,8 @@ from app.dependencies import require_api_key
 from app.models.enrichment import (
     EnrichWordRequest,
     EnrichWordResponse,
+    LexicalEvidenceRequest,
+    LexicalEvidenceResponse,
     SupportedLanguagesResponse,
     WordNlpData,
     WordPhoneticsData,
@@ -16,11 +18,21 @@ from app.models.enrichment import (
     WordZipfResult,
 )
 from app.services.word_enricher import batch_zipf_frequency, enrich_word, fetch_phonetics
+from app.services.lexical_evidence import lexical_evidence
 from wordfreq import available_languages
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Enrichment"], dependencies=[Depends(require_api_key)])
+
+
+@router.post("/lexical-evidence", response_model=LexicalEvidenceResponse)
+async def get_lexical_evidence(body: LexicalEvidenceRequest):
+    try:
+        return await run_in_threadpool(lexical_evidence, body.text, body.language, body.context)
+    except Exception as exc:
+        logger.warning("Lexical evidence unavailable error_type=%s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Lexical evidence unavailable") from exc
 
 
 @router.post("/enrich-word", response_model=EnrichWordResponse)

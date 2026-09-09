@@ -26,8 +26,18 @@ RUN mkdir -p /usr/local/nltk_data/tokenizers /usr/local/nltk_data/corpora \
     && chmod -R a+rX /usr/local/nltk_data
 ENV NLTK_DATA=/usr/local/nltk_data
 
+ADD --checksum=sha256:6025f530624335c67d6547d44757b357b4e79bae030a0383e9887a92c1718f0b https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/taggers/averaged_perceptron_tagger_eng.zip /tmp/averaged_perceptron_tagger_eng.zip
+ADD --checksum=sha256:1370234c7770045d0c50f41e08bc627ec92450324a946de14b93cd7d5e362a86 https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/chunkers/maxent_ne_chunker_tab.zip /tmp/maxent_ne_chunker_tab.zip
+ADD --checksum=sha256:54ed02917d6771dcc3e8141218960d020947f7f2ccfd9ac9b320979349746015 https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/corpora/words.zip /tmp/words.zip
+RUN mkdir -p /usr/local/nltk_data/taggers /usr/local/nltk_data/chunkers \
+    && python -m zipfile -e /tmp/averaged_perceptron_tagger_eng.zip /usr/local/nltk_data/taggers \
+    && python -m zipfile -e /tmp/maxent_ne_chunker_tab.zip /usr/local/nltk_data/chunkers \
+    && python -m zipfile -e /tmp/words.zip /usr/local/nltk_data/corpora \
+    && rm /tmp/averaged_perceptron_tagger_eng.zip /tmp/maxent_ne_chunker_tab.zip /tmp/words.zip \
+    && chmod -R a+rX /usr/local/nltk_data
+
 USER appuser
-RUN python -c "from app.services.nltk_resources import ensure_nltk_data; ensure_nltk_data(); from nltk.corpus import wordnet; assert wordnet.synsets('hello')"
+RUN python -c "from app.services.nltk_resources import ensure_nltk_data; ensure_nltk_data(); from nltk.corpus import wordnet; assert wordnet.synsets('hello'); from app.services.lexical_evidence import named_entities; assert named_entities('Apple released a new product.')"
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

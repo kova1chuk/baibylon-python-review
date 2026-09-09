@@ -1,4 +1,39 @@
-from pydantic import BaseModel, Field
+import unicodedata
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class LexicalContext(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    start: int = Field(ge=0, description="Unicode code point offset")
+    end: int = Field(gt=0, description="Exclusive Unicode code point offset")
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if not 0 <= self.start < self.end <= len(self.text):
+            raise ValueError("Invalid context selection")
+        return self
+
+
+class LexicalEvidenceRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=80)
+    language: str = Field(default="en", pattern=r"^[a-z]{2,3}$")
+    context: LexicalContext | None = None
+
+    @model_validator(mode="after")
+    def matching_selection(self):
+        def normalized(value: str) -> str:
+            return unicodedata.normalize("NFC", value).translate(str.maketrans("’‘ʼ", "'" * 3)).casefold()
+
+        if self.context and normalized(self.context.text[self.context.start:self.context.end]) != normalized(self.text):
+            raise ValueError("Selection does not match the candidate")
+        return self
+
+
+class LexicalEvidenceResponse(BaseModel):
+    lemma_candidates: list[str]
+    zipf_frequency: float | None
+    named_entity: str | None
 
 
 class EnrichWordRequest(BaseModel):

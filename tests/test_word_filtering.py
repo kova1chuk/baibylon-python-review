@@ -131,17 +131,6 @@ class WordFilteringTest(unittest.TestCase):
         self.assertIsNone(response.total_words_before_filter)
         self.assertIn("taggart", _words(response))
 
-    def test_thresholds_are_configurable(self):
-        sentences = [
-            "The engineer visited Rearden at the mill yesterday.",
-            "Later the manager called Rearden about the steel contract.",
-        ]
-
-        with patch.object(settings, "WORD_FILTER_PROPER_NOUN_MIN_OCCURRENCES", 5):
-            classified = classify_sentences(sentences)
-
-        self.assertNotIn("rearden", classified.proper_nouns)
-
     def test_ordinal_tails_are_not_collected_as_words(self):
         classified = classify_sentences(["The 16th regiment left on the 3rd of May."])
 
