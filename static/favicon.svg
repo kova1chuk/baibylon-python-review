@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38.2 28.8" role="img" aria-label="Vocairo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90" role="img" aria-label="Vocairo">
   <style>
-    :root { --ink: #f1ede5; --accent: #7fd0bb; }
-    @media (prefers-color-scheme: light) { :root { --ink: #181b21; --accent: #2f6b5e; } }
+    :root { --ink: #dbe2f5; --accent: #9bcee6; }
+    @media (prefers-color-scheme: light) { :root { --ink: #141b2b; --accent: #27667f; } }
   </style>
-  <rect x="0" y="5.8" width="5.2" height="11.8" rx="2.6" opacity="1" fill="var(--ink)"/><rect x="6.6" y="3.6" width="5.2" height="23.1" rx="2.6" opacity="1" fill="var(--accent)"/><rect x="13.2" y="16.8" width="5.2" height="12" rx="2.6" opacity="1" fill="var(--ink)"/><rect x="19.8" y="16.8" width="5.2" height="12" rx="2.6" opacity="1" fill="var(--ink)"/><rect x="26.4" y="3.6" width="5.2" height="23.1" rx="2.6" opacity="1" fill="var(--accent)"/><rect x="33" y="5.8" width="5.2" height="11.8" rx="2.6" opacity="1" fill="var(--ink)"/><rect x="0.3" y="0" width="4.6" height="4.6" rx="2.3" opacity="1" fill="var(--ink)"/><rect x="13.5" y="11" width="4.6" height="4.6" rx="2.3" opacity="1" fill="var(--ink)"/><rect x="20.1" y="11" width="4.6" height="4.6" rx="2.3" opacity="1" fill="var(--ink)"/><rect x="33.3" y="0" width="4.6" height="4.6" rx="2.3" opacity="1" fill="var(--ink)"/>
+  <path d="M 5 0 L 20.3 0 C 26.1 0 29.4 4.5 32 10.3 L 58.3 60.8 C 61.5 67.3 65.2 70.6 68.6 69.7 L 61.7 82.8 C 59.6 87.4 55 90 49.3 89.3 C 44.4 89 40 86.9 37 80.2 L 1.1 7.3 C -0.8 3.7 0.5 0 5 0 Z" fill="var(--ink)"/><path d="M 80.2 7.7 L 95 7.7 C 99.6 7.7 101.3 10.4 98.8 14.7 L 70.8 66.4 C 66.4 68.3 61.1 62.3 58.1 58.2 C 54.6 53.7 54.2 48.7 54.4 44.3 C 54.5 42 55.2 40 56.2 38.1 L 68.8 14.8 C 71.1 10.5 75.3 7.7 80.2 7.7 Z" fill="var(--accent)"/>
 </svg>
